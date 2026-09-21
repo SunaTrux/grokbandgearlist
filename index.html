@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#0b0c0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="ギア帳" />
-  <meta name="description" content="バンドマンのための持ち物リスト。スタジオ・ライブ・レコーディングを日付ごとに保存できる。" />
-  <title>ギア帳 — バンド持ち物リスト</title>
+  <meta name="apple-mobile-web-app-title" content="バンドおでかけリスト" />
+  <meta name="description" content="スタジオ・ライブ・レコーディングの持ち物を、日付とパートごとに管理するリスト。" />
+  <title>バンドおでかけリスト</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -56,19 +56,23 @@
     }
     .brand { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
     .logo-mark { display: flex; align-items: baseline; gap: 8px; }
-    .logo-en { font-family: "Bebas Neue", sans-serif; letter-spacing: .12em; font-size: 28px; line-height: 1; }
+    .logo-en { font-family: "Zen Kaku Gothic New", sans-serif; letter-spacing: .08em; font-size: 18px; font-weight: 700; line-height: 1.2; }
     .logo-jp { font-size: 12px; color: var(--mute); letter-spacing: .2em; }
     .icon-btn {
       width: 36px; height: 36px; border-radius: 10px;
       background: var(--bg-3); border: 1px solid var(--line);
       display: grid; place-items: center; color: var(--stone);
     }
-    .band-row { margin-top: 10px; }
-    .band-row input {
-      width: 100%; background: transparent; border: 0; border-bottom: 1px dashed #3a3d38;
-      padding: 4px 0; font-size: 15px; outline: none;
+    .lead { margin-top: 8px; font-size: 12px; color: var(--mute); line-height: 1.55; }
+    .settings-block { margin-bottom: 22px; }
+    .settings-block h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; }
+    .row-item {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center;
+      background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+      padding: 10px 10px; margin-bottom: 6px; font-size: 13px;
     }
-    .band-row input::placeholder { color: #5b5f58; }
+    .row-item button { color: var(--mute); font-size: 12px; padding: 4px 6px; }
+    .event-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 
     .modes { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 12px; }
     .mode {
@@ -227,15 +231,12 @@
     <header class="top">
       <div class="brand">
         <div class="logo-mark">
-          <div class="logo-en">GEAR CHO</div>
-          <div class="logo-jp">ギア帳</div>
+          <div class="logo-en">バンドおでかけリスト</div>
         </div>
-        <button class="icon-btn" id="btnMenu" aria-label="メニュー">☰</button>
       </div>
-      <div class="band-row">
-        <input id="bandName" placeholder="バンド名を入力" maxlength="40" />
-      </div>
+      <p class="lead">スタジオ・ライブ・レコの持ち物を、日付とパートごとに残すチェックリストです。</p>
       <div class="modes" id="modes"></div>
+      <div id="eventHead">
       <div class="event-card" id="eventCard"></div>
       <div class="progress-wrap">
         <div class="progress-meta">
@@ -244,12 +245,16 @@
         </div>
         <div class="bar"><i id="progBar"></i></div>
       </div>
+      </div>
     </header>
 
     <div class="import-banner" id="importBanner"></div>
-    <div class="parts" id="parts"></div>
-    <div class="parts-hint">パートは複数選べます。予定の編成は「予定カード」またはメニューから変更。</div>
-    <main id="list"></main>
+    <div id="eventView">
+      <div class="parts" id="parts"></div>
+      <div class="parts-hint">パートは複数選べます。編成の追加・削除は設定から。</div>
+      <main id="list"></main>
+    </div>
+    <main id="settingsView" hidden></main>
   </div>
 
   <nav class="dock">
@@ -434,7 +439,8 @@
       bandName: "",
       customParts: [],
       events: [],
-      ui: { filter: "all", eventId: null, parts: [], part: "all", editId: null, editingEvent: false }
+      catalog: null,
+      ui: { filter: "live", eventId: null, parts: [], part: "all", editId: null, editingEvent: false, catalogType: "live" }
     };
 
     function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
@@ -483,9 +489,13 @@
       ["common","gt","ba","dr","vo","key","other"].forEach(id => { if (!o[id]) o[id] = []; });
       return o;
     }
+    function catalog() {
+      if (!state.catalog) state.catalog = JSON.parse(JSON.stringify(TEMPLATES));
+      return state.catalog;
+    }
     function itemsFromTemplate(type) {
       const items = emptyItems();
-      const tpl = TEMPLATES[type] || TEMPLATES.live;
+      const tpl = catalog()[type] || catalog().live;
       Object.keys(tpl).forEach(pid => {
         items[pid] = tpl[pid].map(([name, qty, mark, note]) => ({
           id: uid(), name, qty, mark: normMark(mark), note, checked: false
@@ -522,9 +532,9 @@
 
     function save() {
       localStorage.setItem(STORE, JSON.stringify({
-        bandName: state.bandName,
         customParts: state.customParts,
         events: state.events,
+        catalog: state.catalog,
         lastEventId: state.ui.eventId
       }));
     }
@@ -546,10 +556,11 @@
         const v2 = localStorage.getItem(STORE);
         if (v2) {
           const d = JSON.parse(v2);
-          state.bandName = d.bandName || "";
           state.customParts = d.customParts || [];
           state.events = d.events || [];
+          state.catalog = d.catalog || null;
           state.ui.eventId = d.lastEventId || null;
+          if (!state.ui.filter || state.ui.filter === "all") state.ui.filter = "live";
           return true;
         }
         const v1 = localStorage.getItem("gearcho.v1");
@@ -622,12 +633,15 @@
     }
 
     function renderModes() {
-      const counts = { all: state.events.length };
+      const counts = {};
       MODES.forEach(m => counts[m.id] = state.events.filter(e => e.type === m.id).length);
-      const tabs = [{ id: "all", label: "すべて" }, ...MODES];
+      const tabs = [
+        ...MODES.map(m => ({ id: m.id, label: m.label, sub: (counts[m.id] || 0) + "件" })),
+        { id: "settings", label: "設定", sub: "管理" }
+      ];
       document.getElementById("modes").innerHTML = tabs.map(m => {
         const on = state.ui.filter === m.id ? "on" : "";
-        return `<button class="mode ${on}" data-filter="${m.id}"><strong>${m.label}</strong><span>${counts[m.id] || 0}件</span></button>`;
+        return `<button class="mode ${on}" data-filter="${m.id}"><strong>${m.label}</strong><span>${m.sub}</span></button>`;
       }).join("");
     }
     function renderEventCard() {
@@ -646,6 +660,7 @@
         <div class="event-actions">
           <button id="btnListEvents">予定一覧</button>
           <button id="btnNewEvent">＋ 予定</button>
+          <button id="btnDelEvent" style="color:var(--danger)">削除</button>
         </div>`;
     }
     function renderParts() {
@@ -667,7 +682,7 @@
       document.getElementById("progBar").style.width = items.length ? (done / items.length * 100) + "%" : "0%";
       const ev = currentEvent();
       document.getElementById("progLabel").textContent = ev
-        ? `${state.bandName || "バンド"} · ${fmtDate(ev.date)}`
+        ? `${modeLabel(ev.type)} · ${fmtDate(ev.date)}`
         : "この日の持ち物";
     }
     function itemHTML(it) {
@@ -711,14 +726,71 @@
       }).join("");
     }
     function render() {
+      const settingsOn = state.ui.filter === "settings";
+      document.getElementById("eventHead").hidden = settingsOn;
+      document.getElementById("eventView").hidden = settingsOn;
+      document.getElementById("settingsView").hidden = !settingsOn;
+      document.getElementById("dock") && (document.querySelector(".dock").style.display = settingsOn ? "none" : "");
+      if (settingsOn) {
+        renderModes();
+        renderSettings();
+        save();
+        return;
+      }
       ensureEvent();
-      document.getElementById("bandName").value = state.bandName;
       renderModes();
       renderEventCard();
       renderParts();
       renderProgress();
       renderList();
       save();
+    }
+    function renderSettings() {
+      const type = state.ui.catalogType || "live";
+      const tpl = catalog()[type] || {};
+      const partRows = allParts().map(p => {
+        const builtin = PARTS.some(b => b.id === p.id);
+        return `<div class="row-item" data-pid="${p.id}">
+          <span>${esc(p.label)}${builtin ? "" : "（追加）"}</span>
+          ${builtin ? "<span></span>" : `<button data-act="renPart">改名</button>`}
+          ${builtin ? "<span></span>" : `<button data-act="delPart" style="color:var(--danger)">削除</button>`}
+        </div>`;
+      }).join("");
+      const itemRows = allParts().map(p => {
+        const arr = tpl[p.id] || [];
+        if (!arr.length && !eventEnabled({ enabledParts: [p.id] }).length) return "";
+        return `<div class="group-label">${esc(p.label)}</div>` + arr.map((it, i) => {
+          const mark = it[2] === "must" ? "必須" : it[2] === "rent" ? "レンタル" : "";
+          return `<div class="row-item" data-catpart="${p.id}" data-cati="${i}">
+            <span>${esc(it[0])}${it[1] > 1 ? " ×" + it[1] : ""}${mark ? " · " + mark : ""}</span>
+            <button data-act="editCat">編集</button>
+            <button data-act="delCat" style="color:var(--danger)">削除</button>
+          </div>`;
+        }).join("");
+      }).join("");
+      document.getElementById("settingsView").innerHTML = `
+        <section class="settings-block">
+          <h3>パート管理</h3>
+          <p class="hint">予定で使うパートを増やせます。共通〜その他は定番として残ります。</p>
+          ${partRows}
+          <div class="dlg-actions"><button id="btnAddPart">パートを追加</button></div>
+        </section>
+        <section class="settings-block">
+          <h3>定番持ち物</h3>
+          <p class="hint">新しい予定やテンプレ読み込みに使われるリストです。</p>
+          <div class="part-picks" id="catTypes">
+            ${MODES.map(m => `<button class="chip ${type === m.id ? "on" : ""}" data-cattype="${m.id}">${m.label}</button>`).join("")}
+          </div>
+          ${itemRows || `<div class="empty">この種類の定番はまだありません。</div>`}
+          <div class="dlg-actions"><button id="btnAddCat">持ち物を追加</button></div>
+        </section>
+        <section class="settings-block">
+          <h3>データ</h3>
+          <div class="menu-list">
+            <button data-act="export">バックアップを書き出す</button>
+            <button data-act="import">バックアップを読み込む</button>
+          </div>
+        </section>`;
     }
 
     function findItem(id) {
@@ -785,10 +857,13 @@
         return `<div class="group-label">${label}</div>` + arr.map(e => {
           const c = countItems(e.items);
           const on = e.id === state.ui.eventId ? "on" : "";
-          return `<button class="event-row ${on}" data-eid="${e.id}">
-            <div class="d">${fmtDate(e.date)}　${modeLabel(e.type)}</div>
-            <div class="s">${esc(e.place || e.title || "会場未設定")}　${c.done}/${c.total}</div>
-          </button>`;
+          return `<div class="event-row ${on}" data-eid="${e.id}">
+            <button data-act="openEv" style="text-align:left">
+              <div class="d">${fmtDate(e.date)}　${modeLabel(e.type)}</div>
+              <div class="s">${esc(e.place || e.title || "会場未設定")}　${c.done}/${c.total}</div>
+            </button>
+            <button data-act="delEv" style="color:var(--danger)">削除</button>
+          </div>`;
         }).join("");
       };
       document.getElementById("eventList").innerHTML =
@@ -799,7 +874,7 @@
     function applyTemplate(strategy) {
       const ev = currentEvent();
       if (!ev) return;
-      const tpl = TEMPLATES[ev.type] || TEMPLATES.live;
+      const tpl = catalog()[ev.type] || catalog().live;
       Object.keys(tpl).forEach(pid => {
         ev.items[pid] ||= [];
         if (strategy === "replace") ev.items[pid] = [];
@@ -834,7 +909,7 @@
     function shareText() {
       const ev = currentEvent();
       if (!ev) return "";
-      const lines = [`【ギア帳】${state.bandName || "バンド"}`, `${modeLabel(ev.type)} ${fmtDate(ev.date)} ${ev.place || ""} ${ev.title || ""}`.trim()];
+      const lines = [`【バンドおでかけリスト】`, `${modeLabel(ev.type)} ${fmtDate(ev.date)} ${ev.place || ""} ${ev.title || ""}`.trim()];
       if (shareScope() === "part" && state.ui.part !== "all") lines.push(`パート：${(allParts().find(p => p.id === state.ui.part) || {}).label}`);
       if (shareScope() === "unchecked") lines.push("未チェックのみ");
       lines.push("");
@@ -892,9 +967,12 @@
       const b = e.target.closest("[data-filter]");
       if (!b) return;
       state.ui.filter = b.dataset.filter;
+      state.ui.parts = [];
       state.ui.part = "all";
-      const still = currentEvent() && (state.ui.filter === "all" || currentEvent().type === state.ui.filter);
-      if (!still) pickDefaultEvent();
+      if (state.ui.filter !== "settings") {
+        const still = currentEvent() && currentEvent().type === state.ui.filter;
+        if (!still) pickDefaultEvent();
+      }
       render();
     });
     document.getElementById("eventCard").addEventListener("click", e => {
@@ -903,8 +981,18 @@
         renderEventList();
         document.getElementById("eventListDlg").showModal();
       }
+      if (e.target.id === "btnDelEvent") deleteEvent(state.ui.eventId);
       if (e.target.closest(".when") || e.target.closest(".meta")) openEventDlg(currentEvent());
     });
+    function deleteEvent(id) {
+      if (!id) return;
+      if (!confirm("この予定を削除しますか？持ち物も消えます。")) return;
+      state.events = state.events.filter(e => e.id !== id);
+      if (state.ui.eventId === id) pickDefaultEvent();
+      const listDlg = document.getElementById("eventListDlg");
+      if (listDlg.open) renderEventList();
+      render();
+    }
     document.getElementById("parts").addEventListener("click", e => {
       const b = e.target.closest("[data-part]");
       if (!b) return;
@@ -924,9 +1012,73 @@
       }
       render();
     });
-    document.getElementById("bandName").addEventListener("change", e => {
-      state.bandName = e.target.value.trim();
-      save(); renderProgress();
+    document.getElementById("settingsView").addEventListener("click", e => {
+      const typeBtn = e.target.closest("[data-cattype]");
+      if (typeBtn) { state.ui.catalogType = typeBtn.dataset.cattype; render(); return; }
+      if (e.target.id === "btnAddPart") {
+        const label = prompt("追加するパート名（例：Sax / DJ / PA）");
+        if (!label) return;
+        const id = "c_" + uid();
+        state.customParts.push({ id, label: label.trim() });
+        catalog();
+        MODES.forEach(m => { state.catalog[m.id][id] = state.catalog[m.id][id] || []; });
+        render();
+        return;
+      }
+      const partRow = e.target.closest("[data-pid]");
+      if (partRow) {
+        const pid = partRow.dataset.pid;
+        const act = e.target.closest("[data-act]")?.dataset.act;
+        const part = state.customParts.find(p => p.id === pid);
+        if (act === "renPart" && part) {
+          const label = prompt("パート名", part.label);
+          if (label) { part.label = label.trim(); render(); }
+        }
+        if (act === "delPart" && part) {
+          if (!confirm(part.label + " を削除しますか？")) return;
+          state.customParts = state.customParts.filter(p => p.id !== pid);
+          render();
+        }
+        return;
+      }
+      if (e.target.id === "btnAddCat") {
+        const name = prompt("定番に追加する持ち物");
+        if (!name) return;
+        const type = state.ui.catalogType || "live";
+        const part = prompt("パート（共通 / Gt / Ba / Dr / Vo / Key / その他）", "共通") || "共通";
+        const p = allParts().find(x => x.label === part || x.id === part) || allParts()[0];
+        catalog()[type][p.id] = catalog()[type][p.id] || [];
+        catalog()[type][p.id].push([name.trim(), 1, "", ""]);
+        render();
+        return;
+      }
+      const catRow = e.target.closest("[data-catpart]");
+      if (catRow) {
+        const type = state.ui.catalogType || "live";
+        const pid = catRow.dataset.catpart;
+        const i = Number(catRow.dataset.cati);
+        const act = e.target.closest("[data-act]")?.dataset.act;
+        const arr = catalog()[type][pid] || [];
+        if (act === "delCat") { arr.splice(i, 1); render(); }
+        if (act === "editCat" && arr[i]) {
+          const name = prompt("名前", arr[i][0]);
+          if (!name) return;
+          const mark = prompt("必須 / レンタル / なし", arr[i][2] === "must" ? "必須" : arr[i][2] === "rent" ? "レンタル" : "なし");
+          arr[i][0] = name.trim();
+          arr[i][2] = mark === "必須" ? "must" : mark === "レンタル" ? "rent" : "";
+          render();
+        }
+        return;
+      }
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (act === "export") {
+        const blob = new Blob([JSON.stringify({ customParts: state.customParts, events: state.events, catalog: catalog() }, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "odekake-list.json";
+        a.click();
+      }
+      if (act === "import") document.getElementById("fileIn").click();
     });
     document.getElementById("list").addEventListener("click", e => {
       const itemEl = e.target.closest(".item");
@@ -1024,9 +1176,11 @@
     };
 
     document.getElementById("eventList").addEventListener("click", e => {
-      const b = e.target.closest("[data-eid]");
-      if (!b) return;
-      state.ui.eventId = b.dataset.eid;
+      const row = e.target.closest("[data-eid]");
+      if (!row) return;
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (act === "delEv") { deleteEvent(row.dataset.eid); return; }
+      state.ui.eventId = row.dataset.eid;
       const ev = currentEvent();
       if (ev) state.ui.filter = ev.type;
       document.getElementById("eventListDlg").close();
@@ -1083,7 +1237,8 @@
       toast("共有できないのでコピーしました");
     };
 
-    document.getElementById("btnMenu").onclick = () => document.getElementById("menuDlg").showModal();
+    const btnMenu = document.getElementById("btnMenu");
+    if (btnMenu) btnMenu.onclick = () => document.getElementById("menuDlg").showModal();
     document.getElementById("closeMenu").onclick = () => document.getElementById("menuDlg").close();
     document.getElementById("closeHelp").onclick = () => document.getElementById("helpDlg").close();
     document.getElementById("menuDlg").addEventListener("click", e => {
@@ -1115,8 +1270,8 @@
       if (!file) return;
       try {
         const d = JSON.parse(await file.text());
-        state.bandName = d.bandName || state.bandName;
         state.customParts = d.customParts || [];
+        if (d.catalog) state.catalog = d.catalog;
         if (d.events) state.events = d.events;
         else if (d.modes) state.events = migrateV1(d);
         pickDefaultEvent();

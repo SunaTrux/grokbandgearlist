@@ -1,7 +1,7 @@
 {
-  "name": "ギア帳 — バンド持ち物リスト",
-  "short_name": "ギア帳",
-  "description": "スタジオ・ライブ・レコーディングの持ち物をパート別に管理するチェックリスト",
+  "name": "バンドおでかけリスト",
+  "short_name": "おでかけリスト",
+  "description": "スタジオ・ライブ・レコーディングの持ち物を日付とパートごとに管理するチェックリスト",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b0c0b",
