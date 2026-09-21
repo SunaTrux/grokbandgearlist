@@ -1,0 +1,18 @@
+{
+  "name": "ギア帳 — バンド持ち物リスト",
+  "short_name": "ギア帳",
+  "description": "スタジオ・ライブ・レコーディングの持ち物をパート別に管理するチェックリスト",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0c0b",
+  "theme_color": "#0b0c0b",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

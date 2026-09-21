@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0c0b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ギア帳" />
+  <meta name="description" content="バンドマンのための持ち物リスト。スタジオ・ライブ・レコーディングを日付ごとに保存できる。" />
+  <title>ギア帳 — バンド持ち物リスト</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0c0b;
+      --bg-2: #141513;
+      --bg-3: #1c1e1b;
+      --line: #2a2c28;
+      --paper: #eef0ec;
+      --mute: #8a8e86;
+      --stone: #c8ccd4;
+      --amber: #d4a24a;
+      --amber-dim: rgba(212, 162, 74, .16);
+      --danger: #d36b5a;
+      --gt: #d4a24a;
+      --ba: #5aa8a0;
+      --dr: #d36b5a;
+      --vo: #e8b4c4;
+      --key: #9b8fd4;
+      --ot: #8a8e86;
+      --cm: #c8ccd4;
+      --safe-t: env(safe-area-inset-top);
+      --safe-b: env(safe-area-inset-bottom);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--paper); }
+    body {
+      font-family: "Zen Kaku Gothic New", sans-serif;
+      min-height: 100dvh;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button, input, textarea, select { font-family: inherit; color: inherit; }
+    button { cursor: pointer; border: 0; background: none; }
+    .app { max-width: 560px; margin: 0 auto; min-height: 100dvh; position: relative; padding-bottom: 88px; }
+
+    header.top {
+      position: sticky; top: 0; z-index: 20;
+      background: linear-gradient(180deg, #0b0c0b 78%, rgba(11,12,11,.88));
+      padding: calc(12px + var(--safe-t)) 16px 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+    .logo-mark { display: flex; align-items: baseline; gap: 8px; }
+    .logo-en { font-family: "Bebas Neue", sans-serif; letter-spacing: .12em; font-size: 28px; line-height: 1; }
+    .logo-jp { font-size: 12px; color: var(--mute); letter-spacing: .2em; }
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--bg-3); border: 1px solid var(--line);
+      display: grid; place-items: center; color: var(--stone);
+    }
+    .band-row { margin-top: 10px; }
+    .band-row input {
+      width: 100%; background: transparent; border: 0; border-bottom: 1px dashed #3a3d38;
+      padding: 4px 0; font-size: 15px; outline: none;
+    }
+    .band-row input::placeholder { color: #5b5f58; }
+
+    .modes { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 12px; }
+    .mode {
+      border: 1px solid var(--line); background: var(--bg-2); color: var(--mute);
+      border-radius: 12px; padding: 8px 4px 7px; text-align: center;
+    }
+    .mode strong { display: block; font-size: 12px; font-weight: 700; }
+    .mode span { display: block; font-size: 10px; margin-top: 2px; }
+    .mode.on { background: var(--amber-dim); border-color: #6a5224; color: var(--amber); }
+
+    .event-card {
+      margin-top: 10px; background: var(--bg-2); border: 1px solid var(--line);
+      border-radius: 14px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+    }
+    .event-card .when { font-family: "Bebas Neue", sans-serif; letter-spacing: .06em; font-size: 22px; line-height: 1; }
+    .event-card .meta { font-size: 12px; color: var(--mute); margin-top: 4px; }
+    .event-card .badge {
+      display: inline-block; font-size: 10px; letter-spacing: .08em; color: var(--amber);
+      border: 1px solid #6a5224; border-radius: 999px; padding: 1px 7px; margin-right: 6px;
+    }
+    .event-actions { display: flex; flex-direction: column; gap: 6px; }
+    .event-actions button {
+      background: var(--bg-3); border: 1px solid var(--line); border-radius: 9px;
+      padding: 6px 8px; font-size: 11px; color: var(--stone); white-space: nowrap;
+    }
+
+    .progress-wrap { margin-top: 10px; }
+    .progress-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--mute); margin-bottom: 6px; }
+    .bar { height: 6px; background: #232522; border-radius: 99px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8a6a2a, var(--amber)); transition: width .25s ease; }
+
+    .parts { display: flex; gap: 6px; overflow-x: auto; padding: 12px 16px 8px; scrollbar-width: none; }
+    .parts::-webkit-scrollbar { display: none; }
+    .chip {
+      flex: 0 0 auto; border: 1px solid var(--line); background: var(--bg-2);
+      color: var(--mute); border-radius: 999px; padding: 6px 11px; font-size: 12px;
+    }
+    .chip.on { color: var(--bg); background: var(--paper); border-color: var(--paper); font-weight: 700; }
+    .chip .n { opacity: .7; margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+    main { padding: 4px 16px 24px; }
+    .part-block { margin-bottom: 18px; }
+    .part-head { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
+    .part-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; letter-spacing: .08em; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .part-sub { font-size: 11px; color: var(--mute); }
+
+    .item {
+      display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: start;
+      background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+      padding: 10px 10px 10px 8px; margin-bottom: 7px;
+    }
+    .item.done .name { color: var(--mute); text-decoration: line-through; }
+    .check {
+      width: 22px; height: 22px; margin-top: 1px; border-radius: 6px;
+      border: 1.5px solid #4a4e48; display: grid; place-items: center;
+    }
+    .item.done .check { background: var(--amber); border-color: var(--amber); color: #1a1408; }
+    .name { font-size: 14px; line-height: 1.35; }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .tag { font-size: 10px; color: var(--mute); background: #222420; border-radius: 6px; padding: 2px 6px; }
+    .tag.must { color: #f0c27a; background: #2a2316; }
+    .mini { width: 26px; height: 22px; color: #6b7068; font-size: 12px; }
+
+    .empty {
+      text-align: center; color: var(--mute); padding: 28px 12px; font-size: 13px;
+      border: 1px dashed var(--line); border-radius: 14px;
+    }
+
+    .dock {
+      position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+      width: min(560px, 100%); z-index: 30;
+      background: rgba(11,12,11,.92); backdrop-filter: blur(12px);
+      border-top: 1px solid var(--line);
+      padding: 10px 12px calc(12px + var(--safe-b));
+      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px;
+    }
+    .dock button {
+      background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px;
+      padding: 10px 4px 8px; font-size: 11px; color: var(--stone);
+    }
+    .dock button b { display: block; font-size: 15px; margin-bottom: 2px; }
+    .dock .primary { background: var(--amber); border-color: var(--amber); color: #1a1408; font-weight: 700; }
+
+    dialog {
+      width: min(440px, calc(100vw - 24px));
+      border: 1px solid var(--line); border-radius: 18px;
+      background: #161715; color: var(--paper); padding: 0;
+    }
+    dialog::backdrop { background: rgba(0,0,0,.62); }
+    .dlg { padding: 18px 16px 16px; }
+    .dlg h2 { margin: 0 0 12px; font-size: 16px; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; font-size: 11px; color: var(--mute); margin-bottom: 4px; }
+    .field input, .field textarea, .field select {
+      width: 100%; background: #0f100f; border: 1px solid var(--line); border-radius: 10px;
+      padding: 10px 11px; font-size: 14px; outline: none;
+    }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dlg-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .dlg-actions button {
+      flex: 1; padding: 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-3);
+    }
+    .dlg-actions .go { background: var(--amber); border-color: var(--amber); color: #1a1408; font-weight: 700; }
+    .dlg-actions .danger { color: var(--danger); }
+    .share-box {
+      white-space: pre-wrap; background: #0f100f; border: 1px solid var(--line);
+      border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.6; max-height: 240px; overflow: auto;
+    }
+    .hint { font-size: 12px; color: var(--mute); line-height: 1.6; margin: 0 0 12px; }
+    .menu-list { display: grid; gap: 6px; }
+    .menu-list button {
+      text-align: left; padding: 12px; border-radius: 12px; background: var(--bg-3); border: 1px solid var(--line);
+    }
+    .menu-list button small { display: block; color: var(--mute); margin-top: 3px; }
+
+    .event-list { display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
+    .event-row {
+      text-align: left; background: var(--bg-3); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+    }
+    .event-row.on { border-color: #6a5224; background: #231d12; }
+    .event-row .d { font-size: 14px; font-weight: 700; }
+    .event-row .s { font-size: 12px; color: var(--mute); margin-top: 3px; }
+    .group-label { font-size: 11px; color: var(--mute); letter-spacing: .12em; margin: 8px 0 4px; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(12px);
+      background: #eceee9; color: #161715; padding: 10px 14px; border-radius: 999px;
+      font-size: 13px; opacity: 0; pointer-events: none; transition: .25s ease; z-index: 50; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .import-banner {
+      margin: 10px 16px 0; padding: 10px 12px; border-radius: 12px;
+      background: #231d12; border: 1px solid #5a4820; font-size: 12px; color: #f0c27a;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <div class="logo-mark">
+          <div class="logo-en">GEAR CHO</div>
+          <div class="logo-jp">ギア帳</div>
+        </div>
+        <button class="icon-btn" id="btnMenu" aria-label="メニュー">☰</button>
+      </div>
+      <div class="band-row">
+        <input id="bandName" placeholder="バンド名を入力" maxlength="40" />
+      </div>
+      <div class="modes" id="modes"></div>
+      <div class="event-card" id="eventCard"></div>
+      <div class="progress-wrap">
+        <div class="progress-meta">
+          <span id="progLabel">この日の持ち物</span>
+          <span id="progCount">0 / 0</span>
+        </div>
+        <div class="bar"><i id="progBar"></i></div>
+      </div>
+    </header>
+
+    <div class="import-banner" id="importBanner"></div>
+    <div class="parts" id="parts"></div>
+    <main id="list"></main>
+  </div>
+
+  <nav class="dock">
+    <button id="btnAdd"><b>＋</b>追加</button>
+    <button id="btnUncheck"><b>○</b>チェック解除</button>
+    <button id="btnTemplate"><b>＋</b>テンプレ</button>
+    <button class="primary" id="btnShare"><b>↗</b>共有 / 公開</button>
+  </nav>
+
+  <dialog id="itemDlg">
+    <form class="dlg" id="itemForm">
+      <h2 id="itemDlgTitle">持ち物を追加</h2>
+      <div class="field"><label>名前</label><input name="name" required maxlength="80" placeholder="例）シールド 3m" /></div>
+      <div class="row2">
+        <div class="field"><label>パート</label><select name="part"></select></div>
+        <div class="field"><label>数量</label><input name="qty" type="number" min="1" max="99" value="1" /></div>
+      </div>
+      <div class="field"><label>メモ</label><input name="note" maxlength="80" placeholder="任意" /></div>
+      <div class="field"><label><input type="checkbox" name="essential" /> 必須（忘れ禁止）</label></div>
+      <div class="dlg-actions">
+        <button type="button" class="danger" id="btnDeleteItem" hidden>削除</button>
+        <button type="button" id="btnCancelItem">閉じる</button>
+        <button class="go" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="eventDlg">
+    <form class="dlg" id="eventForm">
+      <h2 id="eventDlgTitle">新しい予定</h2>
+      <p class="hint">スタジオやライブごとに日付を分けて保存できます。前回の持ち物をコピーすることもできます。</p>
+      <div class="row2">
+        <div class="field">
+          <label>種類</label>
+          <select name="type">
+            <option value="studio">スタジオ</option>
+            <option value="live">ライブ</option>
+            <option value="rec">レコーディング</option>
+          </select>
+        </div>
+        <div class="field"><label>日付</label><input name="date" type="date" required /></div>
+      </div>
+      <div class="field"><label>会場 / スタジオ名</label><input name="place" maxlength="60" placeholder="例）下北沢SHELTER / 某スタジオA" /></div>
+      <div class="field"><label>タイトル（任意）</label><input name="title" maxlength="40" placeholder="例）レコ発 / 3曲録り" /></div>
+      <div class="field">
+        <label>持ち物の元</label>
+        <select name="copyFrom"></select>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" class="danger" id="btnDeleteEvent" hidden>予定を削除</button>
+        <button type="button" id="btnCancelEvent">閉じる</button>
+        <button class="go" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="eventListDlg">
+    <div class="dlg">
+      <h2>予定一覧</h2>
+      <p class="hint">日付ごとに持ち物が残ります。上の種類ボタンで絞り込めます。</p>
+      <div class="event-list" id="eventList"></div>
+      <div class="dlg-actions">
+        <button type="button" id="btnNewFromList">新しい予定</button>
+        <button type="button" id="closeEventList">閉じる</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="menuDlg">
+    <div class="dlg">
+      <h2>メニュー</h2>
+      <div class="menu-list">
+        <button data-act="newEvent">新しい予定<small>日付・会場を分けて保存</small></button>
+        <button data-act="editEvent">この予定を編集</button>
+        <button data-act="template">定番テンプレを足す<small>今の予定に不足分を追加</small></button>
+        <button data-act="part">パートを追加<small>管楽器・DJ・PA など</small></button>
+        <button data-act="export">バックアップを書き出す</button>
+        <button data-act="import">バックアップを読み込む</button>
+        <button data-act="resetChecks">この予定のチェックだけ外す</button>
+        <button data-act="help">公開の仕方</button>
+      </div>
+      <div class="dlg-actions"><button id="closeMenu">閉じる</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="shareDlg">
+    <div class="dlg">
+      <h2>共有 / 公開</h2>
+      <p class="hint">今開いている予定のリストを、テキストかリンクで渡せます。</p>
+      <div class="field"><label>共有テキスト</label><div class="share-box" id="shareText"></div></div>
+      <div class="dlg-actions">
+        <button type="button" id="copyText">テキストをコピー</button>
+        <button type="button" class="go" id="copyLink">リンクをコピー</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="helpDlg">
+    <div class="dlg">
+      <h2>日付ごとの保存</h2>
+      <p class="hint">「9/21 下北沢ライブ」と「9/28 スタジオ」は別の予定として残ります。新しい予定を作るとき、前回の同じ種類のリストをコピーできます。</p>
+      <p class="hint">データはこの端末のブラウザに保存されます。アプリ自体は GitHub Pages などに置けば公開できます。</p>
+      <div class="dlg-actions"><button id="closeHelp">閉じる</button></div>
+    </div>
+  </dialog>
+
+  <input type="file" id="fileIn" accept="application/json" hidden />
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const PARTS = [
+      { id: "common", label: "共通", color: "var(--cm)" },
+      { id: "gt", label: "Gt", color: "var(--gt)" },
+      { id: "ba", label: "Ba", color: "var(--ba)" },
+      { id: "dr", label: "Dr", color: "var(--dr)" },
+      { id: "vo", label: "Vo", color: "var(--vo)" },
+      { id: "key", label: "Key", color: "var(--key)" },
+      { id: "other", label: "その他", color: "var(--ot)" },
+    ];
+    const MODES = [
+      { id: "studio", label: "スタジオ" },
+      { id: "live", label: "ライブ" },
+      { id: "rec", label: "レコ" },
+    ];
+    const TEMPLATES = {
+      studio: {
+        common: [["スタジオ予約の確認",1,true,""],["セットリスト / 進行メモ",1,true,""],["チューナー",1,true,""],["電源タップ",1,false,""],["延長コード",1,false,""],["養生テープ",1,false,""],["耳栓",1,false,""],["タオル",1,false,""],["水",1,false,""],["スマホ充電器",1,false,""],["交通系IC / 現金",1,false,""]],
+        gt: [["ギター本体",1,true,""],["シールド",2,true,"予備含む"],["ピック",10,true,"多め"],["予備弦",1,true,"1セット"],["ストラップ",1,false,""],["カポ",1,false,""],["エフェクターボード",1,false,""],["9V電池",2,false,""],["電源アダプタ",1,false,""]],
+        ba: [["ベース本体",1,true,""],["シールド",2,true,""],["予備弦",1,true,""],["ピック",5,false,""],["ストラップ",1,false,""],["エフェクター / DI",1,false,""],["電池",2,false,""]],
+        dr: [["スティック",2,true,"ペア"],["予備スティック",1,true,""],["チューニングキー",1,true,""],["メトロノーム",1,false,""],["耳栓",1,false,""],["タオル",1,false,""]],
+        vo: [["歌詞 / タブレット",1,true,""],["水",1,true,""],["のど飴",1,false,""],["耳栓 / インイヤー",1,false,""]],
+        key: [["鍵盤本体",1,true,""],["スタンド",1,true,""],["サスティンペダル",1,true,""],["電源ケーブル",1,true,""],["MIDI / オーディオケーブル",1,false,""]],
+        other: []
+      },
+      live: {
+        common: [["セットリスト（部数）",4,true,"PA卓・自分用"],["会場アクセス / 搬入経路",1,true,""],["タイムテーブル",1,true,""],["養生テープ",1,true,""],["電源タップ",1,true,""],["延長コード",1,false,""],["ヘッドライト",1,false,"暗転対策"],["ゴミ袋",2,false,""],["水・塩分",1,true,""],["タオル",1,false,""],["着替え",1,false,""],["常備薬",1,false,""],["メンバー連絡先",1,false,"オフラインでも"]],
+        gt: [["ギター本体",1,true,""],["予備ギター",1,false,"可能なら"],["シールド",3,true,""],["ピック",20,true,""],["予備弦",2,true,""],["ペダルボード + 電源",1,true,""],["チューナー",1,true,""],["ストラップ",1,true,""],["カポ",1,false,""],["ワイヤレス",1,false,"使う場合"],["アンプ（持ち込み時）",1,false,""],["スペア電池",4,false,""]],
+        ba: [["ベース本体",1,true,""],["予備ベース",1,false,""],["シールド",3,true,""],["予備弦",1,true,""],["ペダル / DI",1,true,"会場PA用"],["チューナー",1,true,""],["ストラップ",1,true,""],["アンプ（持ち込み時）",1,false,""]],
+        dr: [["スネア",1,true,"持ち込み定番"],["キックペダル",1,true,""],["シンバル（持ち込み分）",1,false,""],["スティック",3,true,"ペア"],["チューニングキー",1,true,""],["テープ / ミュート",1,false,""],["イヤープロテクター",1,true,""],["スローン",1,false,""]],
+        vo: [["マイマイク（持ち込み時）",1,false,""],["インイヤー / 耳栓",1,true,""],["歌詞",1,true,""],["のど飴・水",1,true,""]],
+        key: [["鍵盤本体",1,true,""],["スタンド",1,true,""],["ペダル",1,true,""],["電源 + 変換",1,true,"会場電源確認"],["ケーブル一式",1,true,""],["音源 / USB",1,false,""]],
+        other: [["グッズ / 物販",1,false,""],["カメラ / 録画",1,false,""]]
+      },
+      rec: {
+        common: [["予約・持ち込み機材の事前連絡",1,true,"スネア/アンプ等"],["デモ / 構成譜",1,true,""],["各曲 BPM / キー",1,true,""],["歌詞プリント",1,true,""],["USBメモリ",1,true,"ラフミックス受取"],["自分用ヘッドホン",1,true,"聞き慣れたもの"],["ヘアバンド",1,false,"ヘッドホン固定"],["ノート / ペン",1,false,""],["水",1,true,""],["クリック（使い慣れた音）",1,false,""]],
+        gt: [["新品弦に張替済みギター",1,true,"前日交換が無難"],["予備ギター",1,true,""],["予備弦",2,true,"多め"],["ピック",15,true,""],["シールド",2,true,""],["ペダルボード",1,false,""],["新品電池",4,true,""],["チューナー",1,true,""],["カポ / スライド",1,false,""],["調整用レンチ類",1,false,""]],
+        ba: [["新品弦のベース",1,true,""],["予備ベース",1,false,""],["DI",1,false,"スタジオに無い場合"],["シールド",2,true,""],["予備弦",1,true,""],["チューナー",1,true,""]],
+        dr: [["スネア（持ち込み）",1,true,""],["シンバル",1,false,""],["キックペダル",1,true,""],["スティック",3,true,""],["予備ヘッド",1,false,"スネア打面"],["チューニングキー",1,true,""]],
+        vo: [["大きい文字の歌詞",1,true,""],["水・のど飴",1,true,""],["ヘッドホン",1,true,""]],
+        key: [["鍵盤本体",1,true,""],["パッチリスト / 音源",1,true,""],["スタンド + ペダル",1,true,""],["ケーブル",1,true,""]],
+        other: []
+      }
+    };
+
+    const STORE = "gearcho.v2";
+    const state = {
+      bandName: "",
+      customParts: [],
+      events: [],
+      ui: { filter: "all", eventId: null, part: "all", editId: null, editingEvent: false }
+    };
+
+    function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+    function todayStr() { return new Date().toISOString().slice(0, 10); }
+    function modeLabel(id) { return (MODES.find(m => m.id === id) || { label: id }).label; }
+    function allParts() {
+      return [...PARTS, ...state.customParts.map(p => ({ id: p.id, label: p.label, color: "var(--ot)" }))];
+    }
+    function emptyItems() {
+      const o = {};
+      allParts().forEach(p => o[p.id] = []);
+      ["common","gt","ba","dr","vo","key","other"].forEach(id => { if (!o[id]) o[id] = []; });
+      return o;
+    }
+    function itemsFromTemplate(type) {
+      const items = emptyItems();
+      const tpl = TEMPLATES[type] || TEMPLATES.live;
+      Object.keys(tpl).forEach(pid => {
+        items[pid] = tpl[pid].map(([name, qty, essential, note]) => ({
+          id: uid(), name, qty, essential, note, checked: false
+        }));
+      });
+      return items;
+    }
+    function cloneItems(src) {
+      const items = emptyItems();
+      Object.keys(src || {}).forEach(pid => {
+        items[pid] = (src[pid] || []).map(it => ({ ...it, id: uid(), checked: false }));
+      });
+      return items;
+    }
+    function countItems(items) {
+      const arr = Object.values(items || {}).flat();
+      return { total: arr.length, done: arr.filter(i => i.checked).length };
+    }
+    function currentEvent() {
+      return state.events.find(e => e.id === state.ui.eventId) || state.events[0] || null;
+    }
+    function filteredEvents() {
+      const list = state.events.slice().sort((a, b) => (b.date + a.id).localeCompare(a.date + b.id) * -1 ? (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) : 0);
+      list.sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
+      if (state.ui.filter === "all") return list;
+      return list.filter(e => e.type === state.ui.filter);
+    }
+    function pickDefaultEvent() {
+      const list = filteredEvents();
+      const today = todayStr();
+      const upcoming = list.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+      state.ui.eventId = (upcoming[0] || list[0] || {}).id || null;
+    }
+
+    function save() {
+      localStorage.setItem(STORE, JSON.stringify({
+        bandName: state.bandName,
+        customParts: state.customParts,
+        events: state.events,
+        lastEventId: state.ui.eventId
+      }));
+    }
+    function migrateV1(d) {
+      const events = [];
+      ["studio", "live", "rec"].forEach(type => {
+        if (!d.modes || !d.modes[type]) return;
+        const items = d.modes[type];
+        const n = Object.values(items).flat().length;
+        if (!n) return;
+        events.push({
+          id: uid(), type, date: todayStr(), place: "", title: modeLabel(type) + "（移行）", items
+        });
+      });
+      return events;
+    }
+    function load() {
+      try {
+        const v2 = localStorage.getItem(STORE);
+        if (v2) {
+          const d = JSON.parse(v2);
+          state.bandName = d.bandName || "";
+          state.customParts = d.customParts || [];
+          state.events = d.events || [];
+          state.ui.eventId = d.lastEventId || null;
+          return true;
+        }
+        const v1 = localStorage.getItem("gearcho.v1");
+        if (v1) {
+          const d = JSON.parse(v1);
+          state.bandName = d.bandName || "";
+          state.customParts = d.customParts || [];
+          state.events = migrateV1(d);
+          return true;
+        }
+      } catch {}
+      return false;
+    }
+    function seedIfEmpty() {
+      if (state.events.length) return;
+      const date = todayStr();
+      state.events = [
+        { id: uid(), type: "live", date, place: "", title: "", items: itemsFromTemplate("live") },
+        { id: uid(), type: "studio", date, place: "", title: "", items: itemsFromTemplate("studio") },
+        { id: uid(), type: "rec", date, place: "", title: "", items: itemsFromTemplate("rec") }
+      ];
+    }
+    function ensureEvent() {
+      const ev = currentEvent();
+      if (!ev) { pickDefaultEvent(); }
+      const cur = currentEvent();
+      if (!cur) return;
+      allParts().forEach(p => { if (!cur.items[p.id]) cur.items[p.id] = []; });
+    }
+
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove("show"), 1800);
+    }
+    function esc(s) {
+      return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+    }
+    function fmtDate(iso) {
+      if (!iso) return "";
+      const [y, m, d] = iso.split("-");
+      const dt = new Date(iso + "T00:00:00");
+      const w = "日月火水木金土"[dt.getDay()];
+      return `${Number(m)}/${Number(d)}（${w}）`;
+    }
+
+    function currentItemsFlat() {
+      const ev = currentEvent();
+      if (!ev) return [];
+      const out = [];
+      allParts().forEach(p => (ev.items[p.id] || []).forEach(it => out.push({ ...it, part: p.id })));
+      return out;
+    }
+    function filteredItems() {
+      const all = currentItemsFlat();
+      return state.ui.part === "all" ? all : all.filter(i => i.part === state.ui.part);
+    }
+
+    function renderModes() {
+      const counts = { all: state.events.length };
+      MODES.forEach(m => counts[m.id] = state.events.filter(e => e.type === m.id).length);
+      const tabs = [{ id: "all", label: "すべて" }, ...MODES];
+      document.getElementById("modes").innerHTML = tabs.map(m => {
+        const on = state.ui.filter === m.id ? "on" : "";
+        return `<button class="mode ${on}" data-filter="${m.id}"><strong>${m.label}</strong><span>${counts[m.id] || 0}件</span></button>`;
+      }).join("");
+    }
+    function renderEventCard() {
+      const ev = currentEvent();
+      const el = document.getElementById("eventCard");
+      if (!ev) {
+        el.innerHTML = `<div><div class="when">予定なし</div><div class="meta">右のボタンから日付を追加</div></div><div class="event-actions"><button id="btnNewEvent">＋ 予定</button></div>`;
+        return;
+      }
+      const place = ev.place || ev.title || "会場未設定";
+      el.innerHTML = `
+        <div>
+          <div class="when">${fmtDate(ev.date)}</div>
+          <div class="meta"><span class="badge">${modeLabel(ev.type)}</span>${esc(place)}${ev.title && ev.place ? " · " + esc(ev.title) : ""}</div>
+        </div>
+        <div class="event-actions">
+          <button id="btnListEvents">予定一覧</button>
+          <button id="btnNewEvent">＋ 予定</button>
+        </div>`;
+    }
+    function renderParts() {
+      const items = currentItemsFlat();
+      const parts = [{ id: "all", label: "すべて" }, ...allParts()];
+      document.getElementById("parts").innerHTML = parts.map(p => {
+        const n = p.id === "all" ? items.length : items.filter(i => i.part === p.id).length;
+        return `<button class="chip ${state.ui.part === p.id ? "on" : ""}" data-part="${p.id}">${p.label}<span class="n">${n}</span></button>`;
+      }).join("");
+    }
+    function renderProgress() {
+      const items = currentItemsFlat();
+      const done = items.filter(i => i.checked).length;
+      document.getElementById("progCount").textContent = `${done} / ${items.length}`;
+      document.getElementById("progBar").style.width = items.length ? (done / items.length * 100) + "%" : "0%";
+      const ev = currentEvent();
+      document.getElementById("progLabel").textContent = ev
+        ? `${state.bandName || "バンド"} · ${fmtDate(ev.date)}`
+        : "この日の持ち物";
+    }
+    function itemHTML(it) {
+      return `<article class="item ${it.checked ? "done" : ""}" data-id="${it.id}">
+        <button class="check" data-act="toggle">${it.checked ? "✓" : ""}</button>
+        <div>
+          <div class="name">${esc(it.name)}${it.qty > 1 ? ` ×${it.qty}` : ""}</div>
+          <div class="meta">
+            ${it.essential ? `<span class="tag must">必須</span>` : ""}
+            ${it.note ? `<span class="tag">${esc(it.note)}</span>` : ""}
+          </div>
+        </div>
+        <button class="mini" data-act="edit">✎</button>
+      </article>`;
+    }
+    function renderList() {
+      const items = filteredItems();
+      const list = document.getElementById("list");
+      if (!currentEvent()) {
+        list.innerHTML = `<div class="empty">まだ予定がありません。<br>「＋ 予定」から日付を追加してください。</div>`;
+        return;
+      }
+      if (!items.length) {
+        list.innerHTML = `<div class="empty">この予定の持ち物はまだありません。<br>「追加」か「テンプレ」から入れてください。</div>`;
+        return;
+      }
+      const grouped = {};
+      items.forEach(i => { (grouped[i.part] ||= []).push(i); });
+      list.innerHTML = allParts().filter(p => grouped[p.id]).map(p => {
+        const arr = grouped[p.id];
+        const done = arr.filter(i => i.checked).length;
+        return `<section class="part-block">
+          <div class="part-head">
+            <div class="part-title"><i class="dot" style="background:${p.color}"></i>${p.label}</div>
+            <div class="part-sub">${done}/${arr.length}</div>
+          </div>
+          ${arr.map(itemHTML).join("")}
+        </section>`;
+      }).join("");
+    }
+    function render() {
+      ensureEvent();
+      document.getElementById("bandName").value = state.bandName;
+      renderModes();
+      renderEventCard();
+      renderParts();
+      renderProgress();
+      renderList();
+      save();
+    }
+
+    function findItem(id) {
+      const ev = currentEvent();
+      if (!ev) return null;
+      for (const pid of Object.keys(ev.items)) {
+        const i = ev.items[pid].findIndex(x => x.id === id);
+        if (i >= 0) return { pid, i, item: ev.items[pid][i] };
+      }
+      return null;
+    }
+
+    function fillCopyOptions(selectedType) {
+      const sel = document.querySelector("#eventForm [name=copyFrom]");
+      const opts = [
+        `<option value="template">定番テンプレ（${modeLabel(selectedType)}）</option>`,
+        `<option value="blank">空のリスト</option>`
+      ];
+      const same = state.events
+        .filter(e => e.type === selectedType && e.id !== state.ui.eventId)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      same.forEach(e => {
+        const c = countItems(e.items);
+        opts.push(`<option value="ev:${e.id}">前回コピー：${fmtDate(e.date)} ${e.place || e.title || ""}（${c.total}）</option>`);
+      });
+      sel.innerHTML = opts.join("");
+    }
+
+    function openEventDlg(existing) {
+      const form = document.getElementById("eventForm");
+      state.ui.editingEvent = !!existing;
+      document.getElementById("eventDlgTitle").textContent = existing ? "予定を編集" : "新しい予定";
+      document.getElementById("btnDeleteEvent").hidden = !existing;
+      form.type.value = existing ? existing.type : (state.ui.filter !== "all" ? state.ui.filter : "live");
+      form.date.value = existing ? existing.date : todayStr();
+      form.place.value = existing ? existing.place : "";
+      form.title.value = existing ? existing.title : "";
+      fillCopyOptions(form.type.value);
+      form.copyFrom.closest(".field").style.display = existing ? "none" : "";
+      document.getElementById("eventDlg").showModal();
+    }
+
+    function renderEventList() {
+      const list = filteredEvents();
+      const today = todayStr();
+      const upcoming = list.filter(e => e.date >= today);
+      const past = list.filter(e => e.date < today);
+      const block = (label, arr) => {
+        if (!arr.length) return "";
+        return `<div class="group-label">${label}</div>` + arr.map(e => {
+          const c = countItems(e.items);
+          const on = e.id === state.ui.eventId ? "on" : "";
+          return `<button class="event-row ${on}" data-eid="${e.id}">
+            <div class="d">${fmtDate(e.date)}　${modeLabel(e.type)}</div>
+            <div class="s">${esc(e.place || e.title || "会場未設定")}　${c.done}/${c.total}</div>
+          </button>`;
+        }).join("");
+      };
+      document.getElementById("eventList").innerHTML =
+        list.length ? block("これから", upcoming) + block("過去", past)
+        : `<div class="empty">この種類の予定はまだありません。</div>`;
+    }
+
+    function applyTemplate(strategy) {
+      const ev = currentEvent();
+      if (!ev) return;
+      const tpl = TEMPLATES[ev.type] || TEMPLATES.live;
+      Object.keys(tpl).forEach(pid => {
+        ev.items[pid] ||= [];
+        if (strategy === "replace") ev.items[pid] = [];
+        const have = new Set(ev.items[pid].map(x => x.name));
+        tpl[pid].forEach(([name, qty, essential, note]) => {
+          if (strategy === "fill" && have.has(name)) return;
+          ev.items[pid].push({ id: uid(), name, qty, essential, note, checked: false });
+        });
+      });
+    }
+
+    function shareText() {
+      const ev = currentEvent();
+      if (!ev) return "";
+      const lines = [`【ギア帳】${state.bandName || "バンド"}`, `${modeLabel(ev.type)} ${fmtDate(ev.date)} ${ev.place || ""} ${ev.title || ""}`.trim(), ""];
+      allParts().forEach(p => {
+        const arr = ev.items[p.id] || [];
+        if (!arr.length) return;
+        lines.push(`■ ${p.label}`);
+        arr.forEach(it => {
+          lines.push(`${it.checked ? "☑" : "☐"} ${it.name}${it.qty > 1 ? " ×" + it.qty : ""}${it.essential ? " ★" : ""}${it.note ? "（" + it.note + "）" : ""}`);
+        });
+        lines.push("");
+      });
+      const items = currentItemsFlat();
+      lines.push(`進捗 ${items.filter(i => i.checked).length}/${items.length}`);
+      return lines.join("\n").trim();
+    }
+    function encodeShare() {
+      const ev = currentEvent();
+      const payload = { v: 2, bandName: state.bandName, customParts: state.customParts, event: ev };
+      return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    }
+    function decodeShare(s) { return JSON.parse(decodeURIComponent(escape(atob(s)))); }
+    function shareURL() {
+      const u = new URL(location.href);
+      u.hash = "s=" + encodeShare();
+      return u.toString();
+    }
+
+    function openItemDlg(existing) {
+      const form = document.getElementById("itemForm");
+      form.part.innerHTML = allParts().map(p => `<option value="${p.id}">${p.label}</option>`).join("");
+      document.getElementById("itemDlgTitle").textContent = existing ? "持ち物を編集" : "持ち物を追加";
+      document.getElementById("btnDeleteItem").hidden = !existing;
+      state.ui.editId = existing ? existing.id : null;
+      form.name.value = existing ? existing.name : "";
+      form.qty.value = existing ? existing.qty : 1;
+      form.note.value = existing ? existing.note : "";
+      form.essential.checked = existing ? !!existing.essential : false;
+      form.part.value = existing ? existing.part : (state.ui.part === "all" ? "common" : state.ui.part);
+      document.getElementById("itemDlg").showModal();
+      setTimeout(() => form.name.focus(), 40);
+    }
+
+    document.getElementById("modes").addEventListener("click", e => {
+      const b = e.target.closest("[data-filter]");
+      if (!b) return;
+      state.ui.filter = b.dataset.filter;
+      state.ui.part = "all";
+      const still = currentEvent() && (state.ui.filter === "all" || currentEvent().type === state.ui.filter);
+      if (!still) pickDefaultEvent();
+      render();
+    });
+    document.getElementById("eventCard").addEventListener("click", e => {
+      if (e.target.id === "btnNewEvent") openEventDlg(null);
+      if (e.target.id === "btnListEvents") {
+        renderEventList();
+        document.getElementById("eventListDlg").showModal();
+      }
+      if (e.target.closest(".when") || e.target.closest(".meta")) openEventDlg(currentEvent());
+    });
+    document.getElementById("parts").addEventListener("click", e => {
+      const b = e.target.closest("[data-part]");
+      if (!b) return;
+      state.ui.part = b.dataset.part;
+      render();
+    });
+    document.getElementById("bandName").addEventListener("change", e => {
+      state.bandName = e.target.value.trim();
+      save(); renderProgress();
+    });
+    document.getElementById("list").addEventListener("click", e => {
+      const itemEl = e.target.closest(".item");
+      if (!itemEl) return;
+      const found = findItem(itemEl.dataset.id);
+      if (!found) return;
+      if (e.target.closest("[data-act]")?.dataset.act === "edit") {
+        openItemDlg({ ...found.item, part: found.pid });
+        return;
+      }
+      found.item.checked = !found.item.checked;
+      render();
+    });
+
+    document.getElementById("btnAdd").onclick = () => currentEvent() ? openItemDlg(null) : openEventDlg(null);
+    document.getElementById("btnCancelItem").onclick = () => document.getElementById("itemDlg").close();
+    document.getElementById("itemForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const ev = currentEvent();
+      if (!ev) return;
+      const f = e.target;
+      const data = {
+        name: f.name.value.trim(),
+        qty: Math.max(1, parseInt(f.qty.value || "1", 10)),
+        note: f.note.value.trim(),
+        essential: f.essential.checked,
+        part: f.part.value
+      };
+      if (!data.name) return;
+      if (state.ui.editId) {
+        const found = findItem(state.ui.editId);
+        if (found) {
+          const next = { ...found.item, name: data.name, qty: data.qty, note: data.note, essential: data.essential };
+          ev.items[found.pid].splice(found.i, 1);
+          ev.items[data.part] ||= [];
+          ev.items[data.part].push(next);
+        }
+      } else {
+        ev.items[data.part] ||= [];
+        ev.items[data.part].push({ id: uid(), ...data, checked: false });
+      }
+      document.getElementById("itemDlg").close();
+      render();
+    });
+    document.getElementById("btnDeleteItem").onclick = () => {
+      const found = findItem(state.ui.editId);
+      if (found) currentEvent().items[found.pid].splice(found.i, 1);
+      document.getElementById("itemDlg").close();
+      render();
+    };
+
+    document.querySelector("#eventForm [name=type]").addEventListener("change", e => fillCopyOptions(e.target.value));
+    document.getElementById("eventForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = e.target;
+      const type = f.type.value;
+      const date = f.date.value;
+      const place = f.place.value.trim();
+      const title = f.title.value.trim();
+      if (state.ui.editingEvent) {
+        const ev = currentEvent();
+        if (ev) { ev.type = type; ev.date = date; ev.place = place; ev.title = title; }
+      } else {
+        let items = itemsFromTemplate(type);
+        const copy = f.copyFrom.value;
+        if (copy === "blank") items = emptyItems();
+        if (copy.startsWith("ev:")) {
+          const src = state.events.find(x => x.id === copy.slice(3));
+          if (src) items = cloneItems(src.items);
+        }
+        const ev = { id: uid(), type, date, place, title, items };
+        state.events.push(ev);
+        state.ui.eventId = ev.id;
+        state.ui.filter = type;
+      }
+      document.getElementById("eventDlg").close();
+      render();
+    });
+    document.getElementById("btnCancelEvent").onclick = () => document.getElementById("eventDlg").close();
+    document.getElementById("btnDeleteEvent").onclick = () => {
+      if (!confirm("この予定を削除しますか？持ち物も消えます。")) return;
+      state.events = state.events.filter(e => e.id !== state.ui.eventId);
+      pickDefaultEvent();
+      document.getElementById("eventDlg").close();
+      render();
+    };
+
+    document.getElementById("eventList").addEventListener("click", e => {
+      const b = e.target.closest("[data-eid]");
+      if (!b) return;
+      state.ui.eventId = b.dataset.eid;
+      const ev = currentEvent();
+      if (ev) state.ui.filter = ev.type;
+      document.getElementById("eventListDlg").close();
+      render();
+    });
+    document.getElementById("closeEventList").onclick = () => document.getElementById("eventListDlg").close();
+    document.getElementById("btnNewFromList").onclick = () => {
+      document.getElementById("eventListDlg").close();
+      openEventDlg(null);
+    };
+
+    document.getElementById("btnUncheck").onclick = () => {
+      const ev = currentEvent();
+      if (!ev) return;
+      Object.values(ev.items).forEach(arr => arr.forEach(i => i.checked = false));
+      render(); toast("チェックを外しました");
+    };
+    document.getElementById("btnTemplate").onclick = () => {
+      if (!currentEvent()) return openEventDlg(null);
+      const fill = confirm("足りない定番アイテムだけ追加します。\nキャンセルすると、この予定をテンプレで上書きします。");
+      applyTemplate(fill ? "fill" : "replace");
+      render(); toast(fill ? "足りない項目を追加しました" : "テンプレで上書きしました");
+    };
+    document.getElementById("btnShare").onclick = () => {
+      if (!currentEvent()) return toast("先に予定を作ってください");
+      document.getElementById("shareText").textContent = shareText();
+      document.getElementById("shareDlg").showModal();
+    };
+    document.getElementById("copyText").onclick = async () => { await navigator.clipboard.writeText(shareText()); toast("コピーしました"); };
+    document.getElementById("copyLink").onclick = async () => { await navigator.clipboard.writeText(shareURL()); toast("リンクをコピーしました"); };
+
+    document.getElementById("btnMenu").onclick = () => document.getElementById("menuDlg").showModal();
+    document.getElementById("closeMenu").onclick = () => document.getElementById("menuDlg").close();
+    document.getElementById("closeHelp").onclick = () => document.getElementById("helpDlg").close();
+    document.getElementById("menuDlg").addEventListener("click", e => {
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (!act) return;
+      document.getElementById("menuDlg").close();
+      if (act === "newEvent") openEventDlg(null);
+      if (act === "editEvent") currentEvent() ? openEventDlg(currentEvent()) : openEventDlg(null);
+      if (act === "template") document.getElementById("btnTemplate").click();
+      if (act === "part") {
+        const label = prompt("追加するパート名（例：Sax / DJ / PA）");
+        if (!label) return;
+        state.customParts.push({ id: "c_" + uid(), label: label.trim() });
+        render();
+      }
+      if (act === "export") {
+        const blob = new Blob([JSON.stringify({ bandName: state.bandName, customParts: state.customParts, events: state.events }, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `gearcho-${state.bandName || "band"}.json`;
+        a.click();
+      }
+      if (act === "import") document.getElementById("fileIn").click();
+      if (act === "resetChecks") document.getElementById("btnUncheck").click();
+      if (act === "help") document.getElementById("helpDlg").showModal();
+    });
+    document.getElementById("fileIn").addEventListener("change", async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const d = JSON.parse(await file.text());
+        state.bandName = d.bandName || state.bandName;
+        state.customParts = d.customParts || [];
+        if (d.events) state.events = d.events;
+        else if (d.modes) state.events = migrateV1(d);
+        pickDefaultEvent();
+        render(); toast("読み込みました");
+      } catch { toast("読み込めませんでした"); }
+      e.target.value = "";
+    });
+
+    function consumeHash() {
+      const h = location.hash.slice(1);
+      if (!h.startsWith("s=")) return;
+      try {
+        const d = decodeShare(h.slice(2));
+        const banner = document.getElementById("importBanner");
+        const ev = d.event || { type: d.mode, date: todayStr(), place: "", title: "", items: d.list };
+        banner.style.display = "block";
+        banner.innerHTML = `共有リスト：${esc(d.bandName || "無題")} / ${modeLabel(ev.type)} ${fmtDate(ev.date)}　<button id="doImport" style="margin-left:8px;color:#f0c27a;text-decoration:underline">予定として取り込む</button>`;
+        document.getElementById("doImport").onclick = () => {
+          if (d.bandName) state.bandName = d.bandName;
+          (d.customParts || []).forEach(p => { if (!state.customParts.some(x => x.id === p.id)) state.customParts.push(p); });
+          const imported = { id: uid(), type: ev.type || "live", date: ev.date || todayStr(), place: ev.place || "", title: ev.title || "共有リスト", items: ev.items || emptyItems() };
+          state.events.push(imported);
+          state.ui.eventId = imported.id;
+          history.replaceState(null, "", location.pathname + location.search);
+          banner.style.display = "none";
+          render(); toast("予定として取り込みました");
+        };
+      } catch (err) { console.warn(err); }
+    }
+
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
+
+    load();
+    seedIfEmpty();
+    if (!currentEvent()) pickDefaultEvent();
+    consumeHash();
+    render();
+  </script>
+</body>
+</html>
