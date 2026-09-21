@@ -138,6 +138,14 @@
     .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
     .tag { font-size: 10px; color: var(--mute); background: #222420; border-radius: 6px; padding: 2px 6px; }
     .tag.must { color: #f0c27a; background: #2a2316; }
+    .tag.rent { color: #8ec4bf; background: #162422; }
+    .mark-tog { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .mark-tog label {
+      text-align: center; border: 1px solid var(--line); border-radius: 10px;
+      padding: 8px 4px; font-size: 12px; background: #0f100f;
+    }
+    .mark-tog input { display: none; }
+    .mark-tog label:has(input:checked) { border-color: #6a5224; background: #231d12; color: var(--amber); }
     .mini { width: 26px; height: 22px; color: #6b7068; font-size: 12px; }
 
     .empty {
@@ -260,7 +268,14 @@
         <div class="field"><label>数量</label><input name="qty" type="number" min="1" max="99" value="1" /></div>
       </div>
       <div class="field"><label>メモ</label><input name="note" maxlength="80" placeholder="任意" /></div>
-      <div class="field"><label><input type="checkbox" name="essential" /> 必須（忘れ禁止）</label></div>
+      <div class="field">
+        <label>持ち込み / レンタル</label>
+        <div class="mark-tog">
+          <label><input type="radio" name="mark" value="" checked /> なし</label>
+          <label><input type="radio" name="mark" value="must" /> 必須</label>
+          <label><input type="radio" name="mark" value="rent" /> レンタル</label>
+        </div>
+      </div>
       <div class="dlg-actions">
         <button type="button" class="danger" id="btnDeleteItem" hidden>削除</button>
         <button type="button" id="btnCancelItem">閉じる</button>
@@ -386,30 +401,30 @@
     ];
     const TEMPLATES = {
       studio: {
-        common: [["スタジオ予約の確認",1,true,""],["セットリスト / 進行メモ",1,true,""],["チューナー",1,true,""],["電源タップ",1,false,""],["延長コード",1,false,""],["養生テープ",1,false,""],["耳栓",1,false,""],["タオル",1,false,""],["水",1,false,""],["スマホ充電器",1,false,""],["交通系IC / 現金",1,false,""]],
-        gt: [["ギター本体",1,true,""],["シールド",2,true,"予備含む"],["ピック",10,true,"多め"],["予備弦",1,true,"1セット"],["ストラップ",1,false,""],["カポ",1,false,""],["エフェクターボード",1,false,""],["9V電池",2,false,""],["電源アダプタ",1,false,""]],
-        ba: [["ベース本体",1,true,""],["シールド",2,true,""],["予備弦",1,true,""],["ピック",5,false,""],["ストラップ",1,false,""],["エフェクター / DI",1,false,""],["電池",2,false,""]],
-        dr: [["スティック",2,true,"ペア"],["予備スティック",1,true,""],["チューニングキー",1,true,""],["メトロノーム",1,false,""],["耳栓",1,false,""],["タオル",1,false,""]],
-        vo: [["歌詞 / タブレット",1,true,""],["水",1,true,""],["のど飴",1,false,""],["耳栓 / インイヤー",1,false,""]],
-        key: [["鍵盤本体",1,true,""],["スタンド",1,true,""],["サスティンペダル",1,true,""],["電源ケーブル",1,true,""],["MIDI / オーディオケーブル",1,false,""]],
+        common: [["スタジオ予約の確認",1,"must",""],["セットリスト / 進行メモ",1,"must",""],["チューナー",1,"must",""],["電源タップ",1,"",""],["延長コード",1,"",""],["養生テープ",1,"",""],["耳栓",1,"",""],["タオル",1,"",""],["水",1,"",""],["スマホ充電器",1,"",""],["交通系IC / 現金",1,"",""]],
+        gt: [["ギター本体",1,"rent","スタジオレンタル可"],["ギターアンプ",1,"rent",""],["シールド",2,"must","予備含む"],["ピック",10,"must","多め"],["予備弦",1,"must","1セット"],["ストラップ",1,"",""],["カポ",1,"",""],["エフェクターボード",1,"",""],["9V電池",2,"",""],["電源アダプタ",1,"",""]],
+        ba: [["ベース本体",1,"rent","スタジオレンタル可"],["ベースアンプ",1,"rent",""],["シールド",2,"must",""],["予備弦",1,"must",""],["ピック",5,"",""],["ストラップ",1,"",""],["エフェクター / DI",1,"",""],["電池",2,"",""]],
+        dr: [["ドラムセット",1,"rent",""],["キックペダル",1,"rent",""],["ドラム椅子",1,"rent",""],["スティック",2,"must","ペア"],["予備スティック",1,"must",""],["チューニングキー",1,"must",""],["メトロノーム",1,"",""],["耳栓",1,"",""],["タオル",1,"",""]],
+        vo: [["歌詞 / タブレット",1,"must",""],["水",1,"must",""],["のど飴",1,"",""],["耳栓 / インイヤー",1,"",""]],
+        key: [["鍵盤本体",1,"rent","スタジオレンタル可"],["スタンド",1,"rent",""],["サスティンペダル",1,"rent",""],["電源ケーブル",1,"",""],["MIDI / オーディオケーブル",1,"",""]],
         other: []
       },
       live: {
-        common: [["セットリスト（部数）",4,true,"PA卓・自分用"],["会場アクセス / 搬入経路",1,true,""],["タイムテーブル",1,true,""],["養生テープ",1,true,""],["電源タップ",1,true,""],["延長コード",1,false,""],["ヘッドライト",1,false,"暗転対策"],["ゴミ袋",2,false,""],["水・塩分",1,true,""],["タオル",1,false,""],["着替え",1,false,""],["常備薬",1,false,""],["メンバー連絡先",1,false,"オフラインでも"]],
-        gt: [["ギター本体",1,true,""],["予備ギター",1,false,"可能なら"],["シールド",3,true,""],["ピック",20,true,""],["予備弦",2,true,""],["ペダルボード + 電源",1,true,""],["チューナー",1,true,""],["ストラップ",1,true,""],["カポ",1,false,""],["ワイヤレス",1,false,"使う場合"],["アンプ（持ち込み時）",1,false,""],["スペア電池",4,false,""]],
-        ba: [["ベース本体",1,true,""],["予備ベース",1,false,""],["シールド",3,true,""],["予備弦",1,true,""],["ペダル / DI",1,true,"会場PA用"],["チューナー",1,true,""],["ストラップ",1,true,""],["アンプ（持ち込み時）",1,false,""]],
-        dr: [["スネア",1,true,"持ち込み定番"],["キックペダル",1,true,""],["シンバル（持ち込み分）",1,false,""],["スティック",3,true,"ペア"],["チューニングキー",1,true,""],["テープ / ミュート",1,false,""],["イヤープロテクター",1,true,""],["スローン",1,false,""]],
-        vo: [["マイマイク（持ち込み時）",1,false,""],["インイヤー / 耳栓",1,true,""],["歌詞",1,true,""],["のど飴・水",1,true,""]],
-        key: [["鍵盤本体",1,true,""],["スタンド",1,true,""],["ペダル",1,true,""],["電源 + 変換",1,true,"会場電源確認"],["ケーブル一式",1,true,""],["音源 / USB",1,false,""]],
-        other: [["グッズ / 物販",1,false,""],["カメラ / 録画",1,false,""]]
+        common: [["セットリスト（部数）",4,"must","PA卓・自分用"],["会場アクセス / 搬入経路",1,"must",""],["タイムテーブル",1,"must",""],["養生テープ",1,"must",""],["電源タップ",1,"must",""],["延長コード",1,"",""],["ヘッドライト",1,"","暗転対策"],["ゴミ袋",2,"",""],["水・塩分",1,"must",""],["タオル",1,"",""],["着替え",1,"",""],["常備薬",1,"",""],["メンバー連絡先",1,"","オフラインでも"]],
+        gt: [["ギター本体",1,"must",""],["予備ギター",1,"","可能なら"],["シールド",3,"must",""],["ピック",20,"must",""],["予備弦",2,"must",""],["ペダルボード + 電源",1,"must",""],["チューナー",1,"must",""],["ストラップ",1,"must",""],["カポ",1,"",""],["ワイヤレス",1,"","使う場合"],["アンプ",1,"rent","バックラインがあればレンタル"],["スペア電池",4,"",""]],
+        ba: [["ベース本体",1,"must",""],["予備ベース",1,"",""],["シールド",3,"must",""],["予備弦",1,"must",""],["ペダル / DI",1,"must","会場PA用"],["チューナー",1,"must",""],["ストラップ",1,"must",""],["アンプ",1,"rent","バックラインがあればレンタル"]],
+        dr: [["スネア",1,"must","持ち込み定番"],["キックペダル",1,"must",""],["シンバル（持ち込み分）",1,"",""],["スティック",3,"must","ペア"],["チューニングキー",1,"must",""],["テープ / ミュート",1,"",""],["イヤープロテクター",1,"must",""],["ドラム椅子",1,"rent","会場備え付けならレンタル"]],
+        vo: [["マイマイク（持ち込み時）",1,"",""],["インイヤー / 耳栓",1,"must",""],["歌詞",1,"must",""],["のど飴・水",1,"must",""]],
+        key: [["鍵盤本体",1,"must",""],["スタンド",1,"must",""],["ペダル",1,"must",""],["電源 + 変換",1,"must","会場電源確認"],["ケーブル一式",1,"must",""],["音源 / USB",1,"",""]],
+        other: [["グッズ / 物販",1,"",""],["カメラ / 録画",1,"",""]]
       },
       rec: {
-        common: [["予約・持ち込み機材の事前連絡",1,true,"スネア/アンプ等"],["デモ / 構成譜",1,true,""],["各曲 BPM / キー",1,true,""],["歌詞プリント",1,true,""],["USBメモリ",1,true,"ラフミックス受取"],["自分用ヘッドホン",1,true,"聞き慣れたもの"],["ヘアバンド",1,false,"ヘッドホン固定"],["ノート / ペン",1,false,""],["水",1,true,""],["クリック（使い慣れた音）",1,false,""]],
-        gt: [["新品弦に張替済みギター",1,true,"前日交換が無難"],["予備ギター",1,true,""],["予備弦",2,true,"多め"],["ピック",15,true,""],["シールド",2,true,""],["ペダルボード",1,false,""],["新品電池",4,true,""],["チューナー",1,true,""],["カポ / スライド",1,false,""],["調整用レンチ類",1,false,""]],
-        ba: [["新品弦のベース",1,true,""],["予備ベース",1,false,""],["DI",1,false,"スタジオに無い場合"],["シールド",2,true,""],["予備弦",1,true,""],["チューナー",1,true,""]],
-        dr: [["スネア（持ち込み）",1,true,""],["シンバル",1,false,""],["キックペダル",1,true,""],["スティック",3,true,""],["予備ヘッド",1,false,"スネア打面"],["チューニングキー",1,true,""]],
-        vo: [["大きい文字の歌詞",1,true,""],["水・のど飴",1,true,""],["ヘッドホン",1,true,""]],
-        key: [["鍵盤本体",1,true,""],["パッチリスト / 音源",1,true,""],["スタンド + ペダル",1,true,""],["ケーブル",1,true,""]],
+        common: [["予約・持ち込み機材の事前連絡",1,"must","スネア/アンプ等"],["デモ / 構成譜",1,"must",""],["各曲 BPM / キー",1,"must",""],["歌詞プリント",1,"must",""],["USBメモリ",1,"must","ラフミックス受取"],["自分用ヘッドホン",1,"must","聞き慣れたもの"],["ヘアバンド",1,"","ヘッドホン固定"],["ノート / ペン",1,"",""],["水",1,"must",""],["クリック（使い慣れた音）",1,"",""]],
+        gt: [["新品弦に張替済みギター",1,"must","前日交換が無難"],["予備ギター",1,"must",""],["予備弦",2,"must","多め"],["ピック",15,"must",""],["シールド",2,"must",""],["ペダルボード",1,"",""],["新品電池",4,"must",""],["チューナー",1,"must",""],["カポ / スライド",1,"",""],["調整用レンチ類",1,"",""]],
+        ba: [["新品弦のベース",1,"must",""],["予備ベース",1,"",""],["DI",1,"","スタジオに無い場合"],["シールド",2,"must",""],["予備弦",1,"must",""],["チューナー",1,"must",""]],
+        dr: [["スネア（持ち込み）",1,"must",""],["シンバル",1,"",""],["キックペダル",1,"must",""],["ドラム椅子",1,"rent",""],["スティック",3,"must",""],["予備ヘッド",1,"","スネア打面"],["チューニングキー",1,"must",""]],
+        vo: [["大きい文字の歌詞",1,"must",""],["水・のど飴",1,"must",""],["ヘッドホン",1,"must",""]],
+        key: [["鍵盤本体",1,"must",""],["パッチリスト / 音源",1,"must",""],["スタンド + ペダル",1,"must",""],["ケーブル",1,"must",""]],
         other: []
       }
     };
@@ -423,6 +438,22 @@
     };
 
     function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+    function normMark(v) {
+      if (v === "must" || v === "rent") return v;
+      if (v === true || v === "true") return "must";
+      return "";
+    }
+    function itemMark(it) {
+      if (it.mark === "must" || it.mark === "rent") return it.mark;
+      if (it.essential) return "must";
+      return "";
+    }
+    function cycleMark(cur) {
+      return cur === "" ? "must" : cur === "must" ? "rent" : "";
+    }
+    function renameLegacy(name) {
+      return name === "スローン" ? "ドラム椅子" : name;
+    }
     function todayStr() { return new Date().toISOString().slice(0, 10); }
     function modeLabel(id) { return (MODES.find(m => m.id === id) || { label: id }).label; }
     function allParts() {
@@ -456,8 +487,8 @@
       const items = emptyItems();
       const tpl = TEMPLATES[type] || TEMPLATES.live;
       Object.keys(tpl).forEach(pid => {
-        items[pid] = tpl[pid].map(([name, qty, essential, note]) => ({
-          id: uid(), name, qty, essential, note, checked: false
+        items[pid] = tpl[pid].map(([name, qty, mark, note]) => ({
+          id: uid(), name, qty, mark: normMark(mark), note, checked: false
         }));
       });
       return items;
@@ -465,7 +496,7 @@
     function cloneItems(src) {
       const items = emptyItems();
       Object.keys(src || {}).forEach(pid => {
-        items[pid] = (src[pid] || []).map(it => ({ ...it, id: uid(), checked: false }));
+        items[pid] = (src[pid] || []).map(it => ({ ...it, id: uid(), checked: false, name: renameLegacy(it.name), mark: itemMark(it) }));
       });
       return items;
     }
@@ -547,6 +578,15 @@
       const cur = currentEvent();
       if (!cur) return;
       allParts().forEach(p => { if (!cur.items[p.id]) cur.items[p.id] = []; });
+    }
+    function normalizeSaved() {
+      state.events.forEach(ev => {
+        Object.values(ev.items || {}).forEach(arr => arr.forEach(it => {
+          if (it.name === "スローン") it.name = "ドラム椅子";
+          it.mark = itemMark(it);
+          delete it.essential;
+        }));
+      });
     }
 
     function toast(msg) {
@@ -636,7 +676,9 @@
         <div>
           <div class="name">${esc(it.name)}${it.qty > 1 ? ` ×${it.qty}` : ""}</div>
           <div class="meta">
-            ${it.essential ? `<span class="tag must">必須</span>` : ""}
+            ${itemMark(it) === "must" ? `<span class="tag must" data-act="mark">必須</span>` : ""}
+            ${itemMark(it) === "rent" ? `<span class="tag rent" data-act="mark">レンタル</span>` : ""}
+            ${!itemMark(it) ? `<span class="tag" data-act="mark">区分</span>` : ""}
             ${it.note ? `<span class="tag">${esc(it.note)}</span>` : ""}
           </div>
         </div>
@@ -762,9 +804,9 @@
         ev.items[pid] ||= [];
         if (strategy === "replace") ev.items[pid] = [];
         const have = new Set(ev.items[pid].map(x => x.name));
-        tpl[pid].forEach(([name, qty, essential, note]) => {
+        tpl[pid].forEach(([name, qty, mark, note]) => {
           if (strategy === "fill" && have.has(name)) return;
-          ev.items[pid].push({ id: uid(), name, qty, essential, note, checked: false });
+          ev.items[pid].push({ id: uid(), name, qty, mark: normMark(mark), note, checked: false });
         });
       });
     }
@@ -804,7 +846,8 @@
         arr.forEach(it => {
           total += 1;
           if (it.checked) done += 1;
-          lines.push(`${it.checked ? "☑" : "☐"} ${it.name}${it.qty > 1 ? " ×" + it.qty : ""}${it.essential ? " ★" : ""}${it.note ? "（" + it.note + "）" : ""}`);
+          const mk = itemMark(it) === "must" ? " ★必須" : itemMark(it) === "rent" ? " ◎レンタル" : "";
+          lines.push(`${it.checked ? "☑" : "☐"} ${it.name}${it.qty > 1 ? " ×" + it.qty : ""}${mk}${it.note ? "（" + it.note + "）" : ""}`);
         });
         lines.push("");
       });
@@ -838,7 +881,8 @@
       form.name.value = existing ? existing.name : "";
       form.qty.value = existing ? existing.qty : 1;
       form.note.value = existing ? existing.note : "";
-      form.essential.checked = existing ? !!existing.essential : false;
+      const mk = existing ? itemMark(existing) : "";
+      [...form.querySelectorAll("[name=mark]")].forEach(r => { r.checked = r.value === mk; });
       form.part.value = existing ? existing.part : (state.ui.parts.length === 1 ? state.ui.parts[0] : "common");
       document.getElementById("itemDlg").showModal();
       setTimeout(() => form.name.focus(), 40);
@@ -889,8 +933,15 @@
       if (!itemEl) return;
       const found = findItem(itemEl.dataset.id);
       if (!found) return;
-      if (e.target.closest("[data-act]")?.dataset.act === "edit") {
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (act === "edit") {
         openItemDlg({ ...found.item, part: found.pid });
+        return;
+      }
+      if (act === "mark") {
+        found.item.mark = cycleMark(itemMark(found.item));
+        delete found.item.essential;
+        render();
         return;
       }
       found.item.checked = !found.item.checked;
@@ -908,14 +959,14 @@
         name: f.name.value.trim(),
         qty: Math.max(1, parseInt(f.qty.value || "1", 10)),
         note: f.note.value.trim(),
-        essential: f.essential.checked,
+        mark: (f.mark && f.mark.value) || "",
         part: f.part.value
       };
       if (!data.name) return;
       if (state.ui.editId) {
         const found = findItem(state.ui.editId);
         if (found) {
-          const next = { ...found.item, name: data.name, qty: data.qty, note: data.note, essential: data.essential };
+          const next = { ...found.item, name: data.name, qty: data.qty, note: data.note, mark: data.mark };
           ev.items[found.pid].splice(found.i, 1);
           ev.items[data.part] ||= [];
           ev.items[data.part].push(next);
@@ -1100,6 +1151,7 @@
 
     load();
     seedIfEmpty();
+    normalizeSaved();
     if (!currentEvent()) pickDefaultEvent();
     consumeHash();
     render();
