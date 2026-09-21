@@ -108,6 +108,13 @@
     }
     .chip.on { color: var(--bg); background: var(--paper); border-color: var(--paper); font-weight: 700; }
     .chip .n { opacity: .7; margin-left: 4px; font-variant-numeric: tabular-nums; }
+    .parts-hint { padding: 0 16px 4px; font-size: 11px; color: var(--mute); }
+    .part-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+    .part-picks label {
+      display: flex; align-items: center; gap: 5px; border: 1px solid var(--line);
+      background: #0f100f; border-radius: 999px; padding: 6px 10px; font-size: 12px;
+    }
+    .part-picks label.on { border-color: #6a5224; background: #231d12; color: var(--amber); }
 
     main { padding: 4px 16px 24px; }
     .part-block { margin-bottom: 18px; }
@@ -233,6 +240,7 @@
 
     <div class="import-banner" id="importBanner"></div>
     <div class="parts" id="parts"></div>
+    <div class="parts-hint">パートは複数選べます。予定の編成は「予定カード」またはメニューから変更。</div>
     <main id="list"></main>
   </div>
 
@@ -279,6 +287,10 @@
       <div class="field"><label>会場 / スタジオ名</label><input name="place" maxlength="60" placeholder="例）下北沢SHELTER / 某スタジオA" /></div>
       <div class="field"><label>タイトル（任意）</label><input name="title" maxlength="40" placeholder="例）レコ発 / 3曲録り" /></div>
       <div class="field">
+        <label>この予定のパート（複数可）</label>
+        <div class="part-picks" id="eventPartPicks"></div>
+      </div>
+      <div class="field">
         <label>持ち物の元</label>
         <select name="copyFrom"></select>
       </div>
@@ -321,12 +333,26 @@
 
   <dialog id="shareDlg">
     <div class="dlg">
-      <h2>共有 / 公開</h2>
-      <p class="hint">今開いている予定のリストを、テキストかリンクで渡せます。</p>
-      <div class="field"><label>共有テキスト</label><div class="share-box" id="shareText"></div></div>
+      <h2>持ち物リストを共有</h2>
+      <p class="hint">LINEやメモに貼るテキストと、相手がアプリに取り込めるリンクを作れます。チェック状態も含まれます。</p>
+      <div class="field">
+        <label>範囲</label>
+        <select id="shareScope">
+          <option value="event">この予定の全部</option>
+          <option value="part">いま表示中のパートだけ</option>
+          <option value="unchecked">未チェックだけ</option>
+        </select>
+      </div>
+      <div class="field"><label>プレビュー</label><div class="share-box" id="shareText"></div></div>
+      <div class="dlg-actions">
+        <button type="button" id="nativeShare" class="go">端末の共有</button>
+      </div>
       <div class="dlg-actions">
         <button type="button" id="copyText">テキストをコピー</button>
-        <button type="button" class="go" id="copyLink">リンクをコピー</button>
+        <button type="button" id="copyLink">リンクをコピー</button>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" id="closeShare">閉じる</button>
       </div>
     </div>
   </dialog>
@@ -393,7 +419,7 @@
       bandName: "",
       customParts: [],
       events: [],
-      ui: { filter: "all", eventId: null, part: "all", editId: null, editingEvent: false }
+      ui: { filter: "all", eventId: null, parts: [], part: "all", editId: null, editingEvent: false }
     };
 
     function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
@@ -401,6 +427,24 @@
     function modeLabel(id) { return (MODES.find(m => m.id === id) || { label: id }).label; }
     function allParts() {
       return [...PARTS, ...state.customParts.map(p => ({ id: p.id, label: p.label, color: "var(--ot)" }))];
+    }
+    function defaultEnabledParts() {
+      return allParts().map(p => p.id);
+    }
+    function eventEnabled(ev) {
+      const ids = (ev && ev.enabledParts && ev.enabledParts.length) ? ev.enabledParts : defaultEnabledParts();
+      return allParts().filter(p => ids.includes(p.id));
+    }
+    function selectedFilterParts() {
+      const ev = currentEvent();
+      const enabled = eventEnabled(ev).map(p => p.id);
+      const picked = (state.ui.parts || []).filter(id => enabled.includes(id));
+      return picked.length ? picked : enabled;
+    }
+    function isFilterAll() {
+      const ev = currentEvent();
+      const enabled = eventEnabled(ev).map(p => p.id);
+      return !state.ui.parts.length || state.ui.parts.length === enabled.length;
     }
     function emptyItems() {
       const o = {};
@@ -492,9 +536,9 @@
       if (state.events.length) return;
       const date = todayStr();
       state.events = [
-        { id: uid(), type: "live", date, place: "", title: "", items: itemsFromTemplate("live") },
-        { id: uid(), type: "studio", date, place: "", title: "", items: itemsFromTemplate("studio") },
-        { id: uid(), type: "rec", date, place: "", title: "", items: itemsFromTemplate("rec") }
+        { id: uid(), type: "live", date, place: "", title: "", items: itemsFromTemplate("live"), enabledParts: defaultEnabledParts() },
+        { id: uid(), type: "studio", date, place: "", title: "", items: itemsFromTemplate("studio"), enabledParts: defaultEnabledParts() },
+        { id: uid(), type: "rec", date, place: "", title: "", items: itemsFromTemplate("rec"), enabledParts: defaultEnabledParts() }
       ];
     }
     function ensureEvent() {
@@ -527,12 +571,14 @@
       const ev = currentEvent();
       if (!ev) return [];
       const out = [];
-      allParts().forEach(p => (ev.items[p.id] || []).forEach(it => out.push({ ...it, part: p.id })));
+      eventEnabled(ev).forEach(p => (ev.items[p.id] || []).forEach(it => out.push({ ...it, part: p.id })));
       return out;
     }
     function filteredItems() {
       const all = currentItemsFlat();
-      return state.ui.part === "all" ? all : all.filter(i => i.part === state.ui.part);
+      if (isFilterAll()) return all;
+      const set = new Set(selectedFilterParts());
+      return all.filter(i => set.has(i.part));
     }
 
     function renderModes() {
@@ -563,11 +609,15 @@
         </div>`;
     }
     function renderParts() {
+      const ev = currentEvent();
       const items = currentItemsFlat();
-      const parts = [{ id: "all", label: "すべて" }, ...allParts()];
+      const lineup = ev ? eventEnabled(ev) : allParts();
+      const parts = [{ id: "all", label: "すべて" }, ...lineup];
+      const allOn = isFilterAll();
       document.getElementById("parts").innerHTML = parts.map(p => {
         const n = p.id === "all" ? items.length : items.filter(i => i.part === p.id).length;
-        return `<button class="chip ${state.ui.part === p.id ? "on" : ""}" data-part="${p.id}">${p.label}<span class="n">${n}</span></button>`;
+        const on = p.id === "all" ? allOn : (!allOn && (state.ui.parts || []).includes(p.id));
+        return `<button class="chip ${on ? "on" : ""}" data-part="${p.id}">${p.label}<span class="n">${n}</span></button>`;
       }).join("");
     }
     function renderProgress() {
@@ -606,7 +656,7 @@
       }
       const grouped = {};
       items.forEach(i => { (grouped[i.part] ||= []).push(i); });
-      list.innerHTML = allParts().filter(p => grouped[p.id]).map(p => {
+      list.innerHTML = eventEnabled(currentEvent()).filter(p => grouped[p.id]).map(p => {
         const arr = grouped[p.id];
         const done = arr.filter(i => i.checked).length;
         return `<section class="part-block">
@@ -666,7 +716,21 @@
       form.title.value = existing ? existing.title : "";
       fillCopyOptions(form.type.value);
       form.copyFrom.closest(".field").style.display = existing ? "none" : "";
+      const selected = existing ? eventEnabled(existing).map(p => p.id) : defaultEnabledParts();
+      document.getElementById("eventPartPicks").innerHTML = allParts().map(p => {
+        const on = selected.includes(p.id);
+        return `<label class="${on ? "on" : ""}"><input type="checkbox" name="enabledPart" value="${p.id}" ${on ? "checked" : ""} /> ${p.label}</label>`;
+      }).join("");
+      document.getElementById("eventPartPicks").onchange = e => {
+        const lab = e.target.closest("label");
+        if (lab) lab.classList.toggle("on", e.target.checked);
+      };
       document.getElementById("eventDlg").showModal();
+    }
+    function readEnabledParts() {
+      const boxes = [...document.querySelectorAll("#eventPartPicks input[name=enabledPart]:checked")];
+      const ids = boxes.map(b => b.value);
+      return ids.length ? ids : ["common"];
     }
 
     function renderEventList() {
@@ -705,26 +769,57 @@
       });
     }
 
+    function shareScope() {
+      return document.getElementById("shareScope")?.value || "event";
+    }
+    function shareParts() {
+      const ev = currentEvent();
+      if (!ev) return [];
+      const scope = shareScope();
+      const lineup = eventEnabled(ev);
+      if (scope === "part" && !isFilterAll()) {
+        const set = new Set(selectedFilterParts());
+        return lineup.filter(p => set.has(p.id));
+      }
+      return lineup.filter(p => (ev.items[p.id] || []).length);
+    }
+    function shareItemsOf(partId) {
+      const ev = currentEvent();
+      let arr = (ev.items[partId] || []).slice();
+      if (shareScope() === "unchecked") arr = arr.filter(it => !it.checked);
+      return arr;
+    }
     function shareText() {
       const ev = currentEvent();
       if (!ev) return "";
-      const lines = [`【ギア帳】${state.bandName || "バンド"}`, `${modeLabel(ev.type)} ${fmtDate(ev.date)} ${ev.place || ""} ${ev.title || ""}`.trim(), ""];
-      allParts().forEach(p => {
-        const arr = ev.items[p.id] || [];
+      const lines = [`【ギア帳】${state.bandName || "バンド"}`, `${modeLabel(ev.type)} ${fmtDate(ev.date)} ${ev.place || ""} ${ev.title || ""}`.trim()];
+      if (shareScope() === "part" && state.ui.part !== "all") lines.push(`パート：${(allParts().find(p => p.id === state.ui.part) || {}).label}`);
+      if (shareScope() === "unchecked") lines.push("未チェックのみ");
+      lines.push("");
+      let total = 0, done = 0;
+      shareParts().forEach(p => {
+        const arr = shareItemsOf(p.id);
         if (!arr.length) return;
         lines.push(`■ ${p.label}`);
         arr.forEach(it => {
+          total += 1;
+          if (it.checked) done += 1;
           lines.push(`${it.checked ? "☑" : "☐"} ${it.name}${it.qty > 1 ? " ×" + it.qty : ""}${it.essential ? " ★" : ""}${it.note ? "（" + it.note + "）" : ""}`);
         });
         lines.push("");
       });
-      const items = currentItemsFlat();
-      lines.push(`進捗 ${items.filter(i => i.checked).length}/${items.length}`);
+      lines.push(`進捗 ${done}/${total}`);
       return lines.join("\n").trim();
     }
     function encodeShare() {
       const ev = currentEvent();
-      const payload = { v: 2, bandName: state.bandName, customParts: state.customParts, event: ev };
+      if (!ev) return "";
+      const scope = shareScope();
+      const items = emptyItems();
+      shareParts().forEach(p => { items[p.id] = shareItemsOf(p.id).map(it => ({ ...it })); });
+      const event = { ...ev, items, title: ev.title || "", place: ev.place || "" };
+      if (scope === "part" && state.ui.part !== "all") event.title = (event.title ? event.title + " / " : "") + ((allParts().find(p => p.id === state.ui.part) || {}).label || "");
+      const payload = { v: 2, bandName: state.bandName, customParts: state.customParts, event };
       return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
     }
     function decodeShare(s) { return JSON.parse(decodeURIComponent(escape(atob(s)))); }
@@ -736,7 +831,7 @@
 
     function openItemDlg(existing) {
       const form = document.getElementById("itemForm");
-      form.part.innerHTML = allParts().map(p => `<option value="${p.id}">${p.label}</option>`).join("");
+      form.part.innerHTML = eventEnabled(currentEvent()).map(p => `<option value="${p.id}">${p.label}</option>`).join("");
       document.getElementById("itemDlgTitle").textContent = existing ? "持ち物を編集" : "持ち物を追加";
       document.getElementById("btnDeleteItem").hidden = !existing;
       state.ui.editId = existing ? existing.id : null;
@@ -744,7 +839,7 @@
       form.qty.value = existing ? existing.qty : 1;
       form.note.value = existing ? existing.note : "";
       form.essential.checked = existing ? !!existing.essential : false;
-      form.part.value = existing ? existing.part : (state.ui.part === "all" ? "common" : state.ui.part);
+      form.part.value = existing ? existing.part : (state.ui.parts.length === 1 ? state.ui.parts[0] : "common");
       document.getElementById("itemDlg").showModal();
       setTimeout(() => form.name.focus(), 40);
     }
@@ -769,7 +864,20 @@
     document.getElementById("parts").addEventListener("click", e => {
       const b = e.target.closest("[data-part]");
       if (!b) return;
-      state.ui.part = b.dataset.part;
+      const id = b.dataset.part;
+      if (id === "all") {
+        state.ui.parts = [];
+        state.ui.part = "all";
+      } else {
+        const set = new Set(state.ui.parts || []);
+        if (isFilterAll()) {
+          set.clear();
+          set.add(id);
+        } else if (set.has(id)) set.delete(id);
+        else set.add(id);
+        state.ui.parts = [...set];
+        state.ui.part = state.ui.parts.length === 1 ? state.ui.parts[0] : "all";
+      }
       render();
     });
     document.getElementById("bandName").addEventListener("change", e => {
@@ -834,9 +942,11 @@
       const date = f.date.value;
       const place = f.place.value.trim();
       const title = f.title.value.trim();
+      const enabledParts = readEnabledParts();
       if (state.ui.editingEvent) {
         const ev = currentEvent();
-        if (ev) { ev.type = type; ev.date = date; ev.place = place; ev.title = title; }
+        if (ev) { ev.type = type; ev.date = date; ev.place = place; ev.title = title; ev.enabledParts = enabledParts; }
+        state.ui.parts = state.ui.parts.filter(id => enabledParts.includes(id));
       } else {
         let items = itemsFromTemplate(type);
         const copy = f.copyFrom.value;
@@ -845,7 +955,7 @@
           const src = state.events.find(x => x.id === copy.slice(3));
           if (src) items = cloneItems(src.items);
         }
-        const ev = { id: uid(), type, date, place, title, items };
+        const ev = { id: uid(), type, date, place, title, items, enabledParts };
         state.events.push(ev);
         state.ui.eventId = ev.id;
         state.ui.filter = type;
@@ -889,13 +999,38 @@
       applyTemplate(fill ? "fill" : "replace");
       render(); toast(fill ? "足りない項目を追加しました" : "テンプレで上書きしました");
     };
+    function refreshSharePreview() {
+      document.getElementById("shareText").textContent = shareText();
+    }
     document.getElementById("btnShare").onclick = () => {
       if (!currentEvent()) return toast("先に予定を作ってください");
-      document.getElementById("shareText").textContent = shareText();
+      const partOpt = document.querySelector("#shareScope option[value=part]");
+      if (partOpt) partOpt.disabled = isFilterAll();
+      if (isFilterAll() && shareScope() === "part") document.getElementById("shareScope").value = "event";
+      refreshSharePreview();
       document.getElementById("shareDlg").showModal();
     };
-    document.getElementById("copyText").onclick = async () => { await navigator.clipboard.writeText(shareText()); toast("コピーしました"); };
-    document.getElementById("copyLink").onclick = async () => { await navigator.clipboard.writeText(shareURL()); toast("リンクをコピーしました"); };
+    document.getElementById("shareScope").onchange = refreshSharePreview;
+    document.getElementById("closeShare").onclick = () => document.getElementById("shareDlg").close();
+    document.querySelectorAll("dialog").forEach(d => {
+      d.addEventListener("click", e => { if (e.target === d) d.close(); });
+    });
+    document.getElementById("copyText").onclick = async () => { await navigator.clipboard.writeText(shareText()); toast("テキストをコピーしました"); };
+    document.getElementById("copyLink").onclick = async () => { await navigator.clipboard.writeText(shareURL()); toast("取り込み用リンクをコピーしました"); };
+    document.getElementById("nativeShare").onclick = async () => {
+      const text = shareText();
+      const url = shareURL();
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "ギア帳", text: text + "\n\n取り込みリンク:\n" + url });
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+      await navigator.clipboard.writeText(text + "\n\n" + url);
+      toast("共有できないのでコピーしました");
+    };
 
     document.getElementById("btnMenu").onclick = () => document.getElementById("menuDlg").showModal();
     document.getElementById("closeMenu").onclick = () => document.getElementById("menuDlg").close();

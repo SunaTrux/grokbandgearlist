@@ -1,4 +1,4 @@
-const CACHE = "gearcho-v2";
+const CACHE = "gearcho-v3";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", e => {
